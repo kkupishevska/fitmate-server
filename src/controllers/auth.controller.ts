@@ -1,7 +1,10 @@
 import express from 'express';
 
-import { createUser, getUserByEmail, updateUserById } from '../db/users';
-import { DOMAIN, SESSION_TOKEN } from './../constants/index';
+import {
+  createUser,
+  getUserByEmail,
+  updateUserById,
+} from '../services/users.service';
 import { authentication, random } from '../helpers/auth';
 import { returnExpireDate } from '../helpers/date';
 
@@ -43,12 +46,12 @@ export const signin = async (req: express.Request, res: express.Response) => {
     user.sessionToken = authentication(random(), user.password);
     const updatedUser = await updateUserById(user.id, user);
 
-    res.cookie(SESSION_TOKEN, user.sessionToken, {
+    res.cookie(process.env.SESSION_TOKEN_KEY, user.sessionToken, {
       expires: returnExpireDate(),
-      domain: DOMAIN,
+      domain: process.env.DOMAIN,
       path: '/',
     });
-    console.log()
+    console.log();
     return res.status(200).json({ user: updatedUser }).end();
   } catch (e) {
     console.log(e);
