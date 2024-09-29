@@ -49,18 +49,16 @@ export const signin = async (req: express.Request, res: express.Response) => {
 
     if (!email || !password) return res.sendStatus(400);
 
-    const result = await getUserByEmail(email);
-    if (!result || !result.length) return res.sendStatus(400);
+    const user = await getUserByEmail(email);
+    if (!user || !user.length) return res.sendStatus(400);
 
-    const user = result[0];
-
-    const isValidPassword = await bcrypt.compare(password, user.password);
+    const isValidPassword = await bcrypt.compare(password, user[0].password);
     if (!isValidPassword) return res.sendStatus(403);
 
-    const sessionToken = authentication(random(), user.password);
-    user.sessionToken = sessionToken;
+    const sessionToken = authentication(random(), user[0].password);
+    user[0].sessionToken = sessionToken;
 
-    const updatedUser = await updateUserById(user.id, user);
+    const updatedUser = await updateUserById(user[0].id, user[0]);
 
     res.cookie(process.env.SESSION_TOKEN_KEY, sessionToken, {
       expires: returnExpireDate(),
@@ -68,7 +66,7 @@ export const signin = async (req: express.Request, res: express.Response) => {
       path: '/',
     });
 
-    return res.status(200).json({ user: updatedUser }).end();
+    return res.status(200).json(updatedUser).end();
   } catch (e) {
     console.error(e);
     return res.sendStatus(500);
@@ -150,4 +148,12 @@ export const resetPassword = async (req: express.Request, res: express.Response)
     console.error(e);
     return res.status(500).json({ message: 'Internal server error' });
   }
+};
+
+export const logout = (req: express.Request, res: express.Response) => {
+  res.clearCookie(process.env.SESSION_TOKEN_KEY, {
+    domain: process.env.DOMAIN,
+    path: '/',
+  });
+  return res.sendStatus(200);
 };
