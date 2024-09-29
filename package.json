@@ -3,7 +3,9 @@
     "start": "nodemon"
   },
   "dependencies": {
+    "@types/bcrypt": "^5.0.2",
     "@types/nodemailer": "^6.4.16",
+    "bcrypt": "^5.1.1",
     "body-parser": "^1.20.2",
     "compression": "^1.7.4",
     "cookie-parser": "^1.4.6",

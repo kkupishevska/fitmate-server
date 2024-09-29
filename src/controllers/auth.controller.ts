@@ -1,5 +1,6 @@
 import express from 'express';
 import crypto from 'crypto';
+import bcrypt from 'bcrypt';
 
 import {
   createUser,
@@ -16,6 +17,8 @@ import {
   getTokenByUserId,
 } from '../services/tokens.service';
 
+const BCRYPT_SALT = Number(process.env.BCRYPT_SALT);
+
 export const signup = async (req: express.Request, res: express.Response) => {
   try {
     const { email, password, ...rest } = req.body;
@@ -25,13 +28,11 @@ export const signup = async (req: express.Request, res: express.Response) => {
     const result = await getUserByEmail(email);
     if (result && result.length) return res.sendStatus(400);
 
-    const salt = random();
-    const hashedPassword = authentication(salt, password);
+    const hash = await bcrypt.hash(password, BCRYPT_SALT);
 
     const user = await createUser({
-      password: hashedPassword,
+      password: hash,
       email,
-      salt,
       ...rest,
     });
 
@@ -52,9 +53,9 @@ export const signin = async (req: express.Request, res: express.Response) => {
     if (!result || !result.length) return res.sendStatus(400);
 
     const user = result[0];
-    const expectedHash = authentication(user.salt, password);
 
-    if (user.password !== expectedHash) return res.sendStatus(403);
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    if (!isValidPassword) return res.sendStatus(403);
 
     const sessionToken = authentication(random(), user.password);
     user.sessionToken = sessionToken;
@@ -67,7 +68,7 @@ export const signin = async (req: express.Request, res: express.Response) => {
       path: '/',
     });
 
-    return res.status(200).json(updatedUser).end();
+    return res.status(200).json({ user: updatedUser }).end();
   } catch (e) {
     console.error(e);
     return res.sendStatus(500);
@@ -85,8 +86,8 @@ export const sendResetToken = async (req: express.Request, res: express.Response
     const tokensList = await getTokenByUserId(user[0].id);
     if (tokensList && tokensList.length) await deleteUserToken(tokensList[0].token);
 
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const hashedToken = authentication(user[0].salt, resetToken);
+    let resetToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = await bcrypt.hash(resetToken, BCRYPT_SALT);
 
     await createUserToken({
       createdAt: new Date(),
@@ -94,10 +95,10 @@ export const sendResetToken = async (req: express.Request, res: express.Response
       token: hashedToken,
     });
 
-    const link = `http://${process.env.CLIENT_URL}/passwordReset?token=${resetToken}&id=${user[0].id}`;
+    const link = `${process.env.CLIENT_URL}/passwordReset?token=${resetToken}&id=${user[0].id}`;
     console.log(link);
 
-    const html = `<b>Hi ${user[0].fullname}, </b>
+    const html = `<b> Hi ${user[0].fullname}, </b>
       <p> You requested to reset your password. </p>
       <p> Please, click the link below to reset your password. </p>
       <a href="${link}">Reset Password</a>`;
@@ -130,18 +131,16 @@ export const resetPassword = async (req: express.Request, res: express.Response)
       return res.status(403).json({ message: 'Invalid token.' });
     }
 
-    const expectedHash = authentication(user[0].salt, token);
-    if (passwordResetToken[0].token !== expectedHash) {
+    const isValid = await bcrypt.compare(token, passwordResetToken[0].token);
+    if (!isValid) {
       return res.status(401).json({ message: "Token expired or doesn't exist." });
     }
 
-    const newSalt = random();
-    const newHashedPassword = authentication(newSalt, password);
+    const hash = await bcrypt.hash(password, BCRYPT_SALT);
 
     await updateUserById(userId, {
       ...user[0],
-      password: newHashedPassword,
-      salt: newSalt,
+      password: hash,
     });
 
     await deleteUserToken(passwordResetToken[0].token);
