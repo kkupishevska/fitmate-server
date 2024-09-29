@@ -1,5 +1,4 @@
-import { db } from '.';
-import { eq, InferModel } from 'drizzle-orm';
+import { InferModel } from 'drizzle-orm';
 import {
   timestamp,
   pgTable,

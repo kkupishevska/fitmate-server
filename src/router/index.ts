@@ -4,7 +4,7 @@ import {
   updateMyInfo,
   getUsersList,
 } from '../controllers/users.controller';
-import { signup, signin } from '../controllers/auth.controller';
+import { signup, signin, sendResetToken, resetPassword } from '../controllers/auth.controller';
 import express from 'express';
 import { isAuthenticated } from '../middleware';
 
@@ -18,5 +18,8 @@ router.get('/users/:id', isAuthenticated, getUser);
 
 router.get('/me', isAuthenticated, getMyInfo);
 router.put('/me', isAuthenticated, updateMyInfo);
+
+router.post('/send-reset', sendResetToken);
+router.post('/reset-password', resetPassword);
 
 export default router;
